@@ -3,25 +3,63 @@ document.addEventListener("DOMContentLoaded", () => {
   const activitySelect = document.getElementById("activity");
   const signupForm = document.getElementById("signup-form");
   const messageDiv = document.getElementById("message");
+  const filtersForm = document.getElementById("filters-form");
+  const activityFilter = document.getElementById("activity-filter");
+  const studentEmailFilter = document.getElementById("student-email-filter");
+  const clearFiltersButton = document.getElementById("clear-filters");
+  let activityOptionsPopulated = false;
 
-  // Function to fetch activities from API
+  // Fetch the activity directory or a filtered participation report.
   async function fetchActivities() {
     try {
-      const response = await fetch("/activities");
+      const params = new URLSearchParams();
+      if (activityFilter.value) {
+        params.set("activity_name", activityFilter.value);
+      }
+      if (studentEmailFilter.value.trim()) {
+        params.set("student_email", studentEmailFilter.value.trim());
+      }
+
+      const query = params.toString();
+      const response = await fetch(`/activities${query ? `?${query}` : ""}`);
       const activities = await response.json();
+
+      if (!response.ok) {
+        activitiesList.innerHTML = `<p class="empty-state">${activities.detail || "Unable to load reports."}</p>`;
+        return;
+      }
 
       // Clear loading message
       activitiesList.innerHTML = "";
 
+      const entries = Object.entries(activities);
+      if (entries.length === 0) {
+        const emptyMessage = studentEmailFilter.value.trim()
+          ? "No activities found for this student."
+          : "No activities match these filters.";
+        activitiesList.innerHTML = `<p class="empty-state">${emptyMessage}</p>`;
+        return;
+      }
+
+      if (!activityOptionsPopulated) {
+        entries.forEach(([name]) => {
+          const activityOption = new Option(name, name);
+          activityFilter.appendChild(activityOption);
+          activitySelect.appendChild(new Option(name, name));
+        });
+        activityOptionsPopulated = true;
+      }
+
+      const isFilteredReport = Boolean(activityFilter.value || studentEmailFilter.value.trim());
+
       // Populate activities list
-      Object.entries(activities).forEach(([name, details]) => {
+      entries.forEach(([name, details]) => {
         const activityCard = document.createElement("div");
         activityCard.className = "activity-card";
 
-        const spotsLeft =
-          details.max_participants - details.participants.length;
+        const participantCount = details.participant_count;
+        const spotsLeft = details.spots_remaining;
 
-        // Create participants HTML with delete icons instead of bullet points
         const participantsHTML =
           details.participants.length > 0
             ? `<div class="participants-section">
@@ -30,7 +68,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 ${details.participants
                   .map(
                     (email) =>
-                      `<li><span class="participant-email">${email}</span><button class="delete-btn" data-activity="${name}" data-email="${email}">❌</button></li>`
+                      `<li><span class="participant-email">${email}</span>${isFilteredReport ? "" : `<button class="delete-btn" data-activity="${name}" data-email="${email}" aria-label="Unregister ${email}">❌</button>`}</li>`
                   )
                   .join("")}
               </ul>
@@ -41,6 +79,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <h4>${name}</h4>
           <p>${details.description}</p>
           <p><strong>Schedule:</strong> ${details.schedule}</p>
+          <p><strong>Participants:</strong> ${participantCount} / ${details.max_participants}</p>
           <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
           <div class="participants-container">
             ${participantsHTML}
@@ -66,6 +105,16 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error("Error fetching activities:", error);
     }
   }
+
+  filtersForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    fetchActivities();
+  });
+
+  clearFiltersButton.addEventListener("click", () => {
+    filtersForm.reset();
+    fetchActivities();
+  });
 
   // Handle unregister functionality
   async function handleUnregister(event) {
