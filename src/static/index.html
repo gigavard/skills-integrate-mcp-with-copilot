@@ -15,6 +15,22 @@
     <main>
       <section id="activities-container">
         <h3>Available Activities</h3>
+        <form id="filters-form" class="filters-form">
+          <div class="form-group">
+            <label for="activity-filter">Activity roster</label>
+            <select id="activity-filter">
+              <option value="">All activities</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="student-email-filter">Find a student by email</label>
+            <input type="email" id="student-email-filter" placeholder="student@mergington.edu" />
+          </div>
+          <div class="filter-actions">
+            <button type="submit">Filter reports</button>
+            <button type="button" id="clear-filters" class="secondary-button">Clear</button>
+          </div>
+        </form>
         <div id="activities-list">
           <!-- Activities will be loaded here -->
           <p>Loading activities...</p>

@@ -84,8 +84,38 @@ def root():
 
 
 @app.get("/activities")
-def get_activities():
-    return activities
+def get_activities(activity_name: str = None, student_email: str = None):
+    """Return activity participation reports, optionally filtered by activity or student."""
+    if activity_name is not None and activity_name not in activities:
+        raise HTTPException(status_code=404, detail="Activity not found")
+
+    email_filter = student_email.strip().casefold() if student_email is not None else None
+    if email_filter == "":
+        email_filter = None
+
+    selected_activities = (
+        {activity_name: activities[activity_name]}
+        if activity_name is not None
+        else activities
+    )
+
+    report = {}
+    for name, activity in selected_activities.items():
+        participants = activity["participants"]
+        if email_filter and not any(
+            participant.casefold() == email_filter for participant in participants
+        ):
+            continue
+
+        participant_count = len(participants)
+        report[name] = {
+            **activity,
+            "participants": list(participants),
+            "participant_count": participant_count,
+            "spots_remaining": max(0, activity["max_participants"] - participant_count),
+        }
+
+    return report
 
 
 @app.post("/activities/{activity_name}/signup")
